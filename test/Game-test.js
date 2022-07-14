@@ -73,6 +73,10 @@ const NUMBER = 46;
         Mock = await ethers.getContractFactory("MockERC20");
         mock = await Mock.deploy(113);
         await mock.deployed();
+
+        GameFactory = await ethers.getContractFactory("GameFactory");
+        gameFactory = await GameFactory.deploy();
+        await gameFactory.deployed();
         
         Game = await ethers.getContractFactory("Game");
         game = await Game.deploy(
@@ -116,28 +120,20 @@ const NUMBER = 46;
         expect (await mock.connect(user2).approve(game.address, ether("0.5"))).to.ok;
         expect (await mock.connect(user3).approve(game.address, ether("0.5"))).to.ok;
 
+        expect (await mock.transfer(owner.address, ether("0.5"))).to.ok;
+        expect (await mock.connect(owner).approve(gameFactory.address, ether("0.5"))).to.ok;
     });
     
-    // it("Should successfully request a random number", async () => {
-        //         const transaction = await randomNumberConsumer.getRandomNumber()
-        //         const transactionReceipt = await transaction.wait(1)
-        //         const requestId = transactionReceipt.events[0].topics[1]
-        //         console.log("requestId: ", requestId)
-        //         expect(requestId).to.not.be.null
-        //       })
-        
-        //       it("Should successfully request a random number and get a result", async () => {
-        //         const transaction = await randomNumberConsumer.getRandomNumber()
-        //         const transactionReceipt = await transaction.wait(1)
-        //         const requestId = transactionReceipt.events[0].topics[1]
-        //         const randomValue = 777
-        //         await vrfCoordinatorMock.callBackWithRandomness(
-        //           requestId,
-        //           randomValue,
-        //           randomNumberConsumer.address
-        //         )
-        //         assert.equal((await randomNumberConsumer.randomResult()).toString(), randomValue)
-        //       })
+    describe ("GameFactory", async function (){
+        it("startGame", async function (){
+            await expect (gameFactory.connect(owner).startGame(mock.address, ether("0.5"), 3, 101)).to.be.revertedWith("Your number should be less or equals to 100");
+            await expect (gameFactory.connect(owner).startGame(mock.address, ether("0"), 3, 57)).to.be.revertedWith("Deposit shoul be more than ZERO");
+            // await expect (gameFactory.connect(owner).startGame("0", ether("0.5"), 3, 57)).to.be.revertedWith("Wrong token address");
+            expect (await gameFactory.connect(owner).startGame(mock.address, ether("0.5"), 0, 57));
+            await expect (gameFactory.connect(owner).startGame(mock.address, ether("0.5"), 0, 57)).to.be.revertedWith("You can create just one game for one address");
+          });
+    });
+
     describe ("Random number", async function (){
         it("Should successfully request a random number", async function (){
             // await expect (game.getRandomNumber()).to.be.revertedWith("Not enough LINK in contract");
@@ -162,7 +158,7 @@ const NUMBER = 46;
         //   });
     });
 
-    describe ("participate", async function (){
+    describe ("Game", async function (){
 
         it("REQUIRE", async function () {
             await expect (game.connect(user1).participate(101)).to.be.revertedWith("Your number should be less than 100");
@@ -171,7 +167,7 @@ const NUMBER = 46;
             await expect (game.connect(user2).participate(55)).to.be.revertedWith("Game Over");
         });
 
-        it ("participate", async function (){
+        it ("participate and getting winner", async function (){
             expect (await mock.balanceOf(user1.address)).to.equal(ether("1"));
             expect (await mock.balanceOf(user2.address)).to.equal(ether("0.5"));
             
@@ -222,137 +218,5 @@ const NUMBER = 46;
         
     });
 
-    describe ("getWinner", async function (){
-
-        // it ("Game is not over", async function (){
-        //     await expect (game.getWinner()).to.be.revertedWith("Game is not Over");
-        // });
-
-        // it ("Don't have rundom number", async function (){
-        //     expect (await game.randomRecived()).to.equal(false);
-        //     await skipTimeTo(await getLatestBlockTimestamp() + FIVE_MIN);
-        //     expect (await game.getWinner()).to.be.revertedWith("You need to get random Number");
-        // });
-
-        it ("REQUIRE", async function (){
-            // expect (await game._counter()).to.equal(0);
-            // expect (await game.idOfFirstWinner()).to.equal(0);
-            // expect (await game.randomRecived()).to.equal(false);
-            // await expect (game.getWinner()).to.be.revertedWith("Game is not Over");
-            // await getUsersWinner();
-            // await skipTimeTo(await getLatestBlockTimestamp() + FIVE_MIN);
-
-            // await expect (game.getWinner()).to.ok;
-            // expect (await game._counter()).to.equal(0);
-            // expect (await game.idOfFirstWinner()).to.equal(0);
-            // expect (await game.randomResult()).to.equal(69);
-        });
-
-        it ("Getting winner", async function (){
-            
-        });
-        // expect (await game.numberOfUsers()).to.equal(5);
-    });
-
-    // describe("getAmountPercantageUnlock", async function () {
-    //     it("Not owner use function", async function () {
-    //         await expect(vesting.connect(user1).claimNRFX()).to.be.revertedWith("Not owner");
-    //     });
-
-    //     it("Zero Balance", async function () {
-    //         await expect(vesting.getAmountPercantageUnlock()).to.be.revertedWith("You should have Narfex on Balance");
-    //     });
-
-    //     it("Owner write function", async function () {
-    //         expect (await vesting.amountPercantageUnlock()).to.equal(0);
-    //         expect (await mock.transfer(vesting.address, ether("113"))).to.ok;
-    //         expect (await mock.balanceOf(vesting.address)).to.equal(ether("113"));
-
-    //         expect (vesting.getAmountPercantageUnlock()).to.ok
-    //             .to.emit(vesting, 'GetAmountPercantageUnlock')
-    //             .withArgs(ether("11.3"), true);
-
-    //         expect (await vesting.amountPercantageUnlock()).to.equal(ether("11.3"));
-    //         expect(await vesting.calculatedAmountPercantageUnlock()).to.equal(true);
-    //         await expect(vesting.getAmountPercantageUnlock()).to.be.revertedWith("Calculated only once");
-    //     });
-
-    // });
-
-    // it ("getAmountPercantageUnlock", async function () {
-    //     await expect (vesting.connect(user1).claimNRFX()).to.be.revertedWith("Not owner");
-    //     await expect(vesting.getAmountPercantageUnlock()).to.be.revertedWith("You should have Narfex on Balance");
-    //     expect (await mock.transfer(vesting.address, ether("113"))).to.ok;
-    //     expect (await mock.balanceOf(vesting.address)).to.equal(ether("113"));
-
-    //     expect (vesting.getAmountPercantageUnlock()).to.ok
-    //         .to.emit(vesting, 'GetAmountPercantageUnlock')
-    //         .withArgs(ether("11.3"), true);
-
-    //     expect (await vesting.amountPercantageUnlock()).to.equal(ether("11.3"));
-    //     expect (await vesting.calculatedAmountPercantageUnlock()).to.equal(true);
-    //     await expect (vesting.getAmountPercantageUnlock()).to.be.revertedWith("Calculated only once");
-    // });
-
-    // describe("claimNRFX", async function () {
-    //     it("Not owner use function", async function () {
-    //         await expect (vesting.connect(user1).claimNRFX()).to.be.revertedWith("Not owner");
-    //     });
-
-    //     it("Not half of year", async function () {
-    //         await expect (vesting.claimNRFX()).to.be.revertedWith("Wait half an year");
-    //     });
-
-    //     it("Not used function getAmountPercantageUnlock", async function () {
-    //         await skipTimeTo(await getLatestBlockTimestamp() + HALF_YEAR);
-    //         expect(await vesting.calculatedAmountPercantageUnlock()).to.equal(false);
-    //         await expect (vesting.claimNRFX()).to.be.revertedWith("Calculate amountPercantageUnlock");
-    //     });
-
-    //     it("Owner write function", async function () {
-    //         expect (await mock.balanceOf(vesting.address)).to.equal(ether("0"));
-    //         expect (await mock.transfer(vesting.address, ether("113"))).to.ok;
-    //         expect (await mock.balanceOf(vesting.address)).to.equal(ether("113"));
-    //         expect (await mock.balanceOf(owner.address)).to.equal(ether("0"));
-
-    //         await skipTimeTo(await getLatestBlockTimestamp() + HALF_YEAR);
-
-    //         expect (await vesting.amountPercantageUnlock()).to.equal(ether("0"));
-    //         expect (await vesting.getAmountPercantageUnlock()).to.ok;
-    //         expect (await vesting.amountPercantageUnlock()).to.equal(ether("11.3"));
     
-    //         expect (vesting.claimNRFX()).to.ok
-    //             .to.emit(vesting, 'ClaimNRFX')
-    //             .withArgs(owner.address, ether("11.3"));
-
-    //         expect (await mock.balanceOf(vesting.address)).to.equal(ether("101.7"));
-    //         expect (await mock.balanceOf(owner.address)).to.equal(ether("11.3"));
-    //     });
-
-    // });
-
-    // it ("claimNRFX", async function () {
-    //     await expect (vesting.connect(user1).claimNRFX()).to.be.revertedWith("Not owner");
-    //     await expect (vesting.claimNRFX()).to.be.revertedWith("Wait half an year");
-
-    //     expect (await mock.balanceOf(vesting.address)).to.equal(ether("0"));
-    //     expect (await mock.transfer(vesting.address, ether("113"))).to.ok;
-    //     expect (await mock.balanceOf(vesting.address)).to.equal(ether("113"));
-    //     expect (await mock.balanceOf(owner.address)).to.equal(ether("0"));
-
-    //     await skipTimeTo(await getLatestBlockTimestamp() + HALF_YEAR);
-
-    //     expect (await vesting.amountPercantageUnlock()).to.equal(ether("0"));
-    //     expect (await vesting.getAmountPercantageUnlock()).to.ok;
-    //     expect (await vesting.amountPercantageUnlock()).to.equal(ether("11.3"));
-    
-    //     expect (vesting.claimNRFX()).to.ok
-    //         .to.emit(vesting, 'ClaimNRFX')
-    //         .withArgs(owner.address, ether("11.3"));
-
-    //     expect (await mock.balanceOf(vesting.address)).to.equal(ether("101.7"));
-    //     expect (await mock.balanceOf(owner.address)).to.equal(ether("11.3"));
-        
-    // });
-
 });

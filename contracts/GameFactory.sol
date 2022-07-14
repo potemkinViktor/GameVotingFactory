@@ -23,14 +23,14 @@ contract GameFactory {
     /// @param _deposit amount of deposit in _token for participate in game
     /// @param _number number which selected by owner of game
     /// @param _numberOfUsers maximum number of players should be equals ZERO if you don't need a limit
-    function start(IERC20 _token, uint256 _deposit, uint256 _number, uint256 _numberOfUsers) public {
+    function startGame(IERC20 _token, uint256 _deposit,uint256 _numberOfUsers, uint256 _number) public {
         address _msgSender = msg.sender;
 
         require(address(_token) != address(0), "Wrong token address");
         require(_deposit != 0, "Deposit shoul be more than ZERO");
         require (
             games[_msgSender] == address(0),
-            "You can create just one game for one addreaa"
+            "You can create just one game for one address"
         );
         require(
             _number <= 100,
