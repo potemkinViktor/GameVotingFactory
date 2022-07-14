@@ -131,6 +131,13 @@ const NUMBER = 46;
             // await expect (gameFactory.connect(owner).startGame("0", ether("0.5"), 3, 57)).to.be.revertedWith("Wrong token address");
             expect (await gameFactory.connect(owner).startGame(mock.address, ether("0.5"), 0, 57));
             await expect (gameFactory.connect(owner).startGame(mock.address, ether("0.5"), 0, 57)).to.be.revertedWith("You can create just one game for one address");
+
+            let games = await gameFactory.games(owner.address);
+            expect (games[0]).to.equal(mock.address);
+            expect (games[1]).to.equal(ether("0.5"));
+            expect (games[2]).to.equal(57);
+            expect (games[3]).to.equal(0);
+            expect (games[4]).to.equal(owner.address);
           });
     });
 
@@ -199,6 +206,7 @@ const NUMBER = 46;
             expect (await game._counter()).to.equal(0);
             expect (await game.idOfFirstWinner()).to.equal(0);
             expect (await game.randomRecived()).to.equal(false);
+            expect (await game.gameEnded()).to.equal(false);
             await expect (game.getWinner()).to.be.revertedWith("Game is not Over");
             await skipTimeTo(await getLatestBlockTimestamp() + FIVE_MIN);
 
@@ -214,6 +222,8 @@ const NUMBER = 46;
         
             expect (await mock.balanceOf(user1.address)).to.equal(ether("1.25"));
             expect (await mock.balanceOf(user2.address)).to.equal(ether("0.75"));
+            expect (await game.gameEnded()).to.equal(true);
+            await expect (game.getWinner()).to.be.revertedWith("Game ended, tokens transfered to winners");
         });
         
     });

@@ -30,6 +30,7 @@ contract Game {//is VRFConsumerBase {
     uint256 public _counter;
     uint256 public _numberOfWinners;
     uint256 public _count;
+    bool public gameEnded;
 
     mapping(uint256 => Gamer) public gamers;
     mapping(address => uint256) public gamersID;
@@ -118,6 +119,7 @@ contract Game {//is VRFConsumerBase {
         ? require(randomResult < 101, "You need to get random Number")
         : getPseudorandom(); //getRandomNumber()
         require(block.timestamp - startGame >= 5 minutes, "Game is not Over");
+        require(!gameEnded, "Game ended, tokens transfered to winners");
 
         _numberOfWinners = getNumberOfWinners();
         _counter = abs(1);
@@ -163,6 +165,7 @@ contract Game {//is VRFConsumerBase {
             emit Winner(gamers[winners[i]].gamerAddress, gamers[winners[i]].number, _winnerAmount);
         }
 
+        gameEnded = true;
         emit GameEnded(block.timestamp, randomResult);
     }
 

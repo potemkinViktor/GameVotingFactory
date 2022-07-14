@@ -16,20 +16,20 @@ contract GameFactory {
     
     event GameStarted(IERC20 token, uint256 deposit, uint256 number, uint256 numberOfUsers, address owner);
 
-    mapping(address => address) public games;
+    mapping(address => Games) public games;
 
     /// @notice creating new game
     /// @param _token IERC20 token for participate in game
     /// @param _deposit amount of deposit in _token for participate in game
-    /// @param _number number which selected by owner of game
     /// @param _numberOfUsers maximum number of players should be equals ZERO if you don't need a limit
+    /// @param _number number which selected by owner of game
     function startGame(IERC20 _token, uint256 _deposit,uint256 _numberOfUsers, uint256 _number) public {
         address _msgSender = msg.sender;
 
         require(address(_token) != address(0), "Wrong token address");
         require(_deposit != 0, "Deposit shoul be more than ZERO");
         require (
-            games[_msgSender] == address(0),
+            games[_msgSender].gameOwner == address(0),
             "You can create just one game for one address"
         );
         require(
@@ -38,7 +38,14 @@ contract GameFactory {
         );
 
         Game game = new Game(_token, _deposit, _numberOfUsers, _number);
-        games[_msgSender] = address(game);
+        games[_msgSender] = Games({
+            token: _token,
+            deposit: _deposit,
+            number: _number,
+            numberOfUsers: _numberOfUsers,
+            gameOwner: _msgSender
+        });
+
         _token.transferFrom(_msgSender, address(game), _deposit);
 
         emit GameStarted(_token, _deposit, _number, _numberOfUsers, _msgSender);
