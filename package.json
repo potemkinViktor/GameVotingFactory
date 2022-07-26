@@ -13,6 +13,7 @@
     "@chainlink/contracts": "^0.4.1",
     "@nomiclabs/hardhat-etherscan": "^3.1.0",
     "@openzeppelin/contracts": "^4.7.0",
-    "dotenv": "^16.0.1"
+    "dotenv": "^16.0.1",
+    "web3": "^1.7.4"
   }
 }

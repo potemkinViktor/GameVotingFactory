@@ -2,7 +2,8 @@
 pragma solidity ^0.8.13;
 
 import "hardhat/console.sol";
-// import "./VRFConsumerBase.sol";
+import "./VRFConsumerBase.sol";
+// import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 
 interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
@@ -12,7 +13,7 @@ interface IERC20 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
 
-contract Game {//is VRFConsumerBase {
+contract Game is VRFConsumerBase {
 
     struct Gamer {
         uint256 number; // number from 0 to 100
@@ -51,10 +52,10 @@ contract Game {//is VRFConsumerBase {
         uint256 _numberOfUsers, // maximum number of players 
         uint256 _number // number of owner
     )
-        // VRFConsumerBase(
-        //     0x8C7382F9D8f56b33781fE506E897a4F1e2d17255, // VRF coordinator
-        //     0x326C977E6efc84E512bB9C30f76E30c160eD06FB // LINK token address
-        // ) 
+        VRFConsumerBase(
+            0x8C7382F9D8f56b33781fE506E897a4F1e2d17255, // VRF coordinator
+            0x326C977E6efc84E512bB9C30f76E30c160eD06FB // LINK token address
+        ) 
     {
         address _msgSender = msg.sender;
         token = _token;
@@ -68,29 +69,26 @@ contract Game {//is VRFConsumerBase {
         startGame = block.timestamp;
     }
 
-    // /// @notice function from chainlink
-    // function getRandomNumber() public returns (bytes32 requestId) {
-    //     console.log(1);
-    //     require(!randomRecived, "Random number recived");
-    //     console.log(4);
-    //     require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK in contract");
-    //     console.log(2);
-    //     randomRecived = true;
-    //     console.log(3);
-    //     return requestRandomness(keyHash, fee);
-    // }
-
-    // /// @notice function from chainlink 
-    // function fulfillRandomness(bytes32 requestId, uint randomness) internal override {
-    //     randomResult = randomness % 101;
-    //     require(randomResult < 101, "You need to wait for random Number");
-    // }
-
-    function getPseudorandom() private {
+    /// @notice function from chainlink
+    function getRandomNumber() public returns (bytes32 requestId) {
+        require(block.timestamp - startGame >= 5 minutes, "Game is not Over");
         require(!randomRecived, "Random number recived");
+        require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK in contract");
         randomRecived = true;
-        randomResult = 69;
+        return requestRandomness(keyHash, fee);
     }
+
+    /// @notice function from chainlink 
+    function fulfillRandomness(bytes32 requestId, uint randomness) internal override {
+        randomResult = randomness % 101;
+        require(randomResult < 101, "You need to wait for random Number");
+    }
+
+    // function getPseudorandom() private {
+    //     require(!randomRecived, "Random number recived");
+    //     randomRecived = true;
+    //     randomResult = 69;
+    // }
  
     /// @notice adding new user in game (nedded to use approve function in IERC20 token contract)
     /// @param _number number for msg.sender
@@ -104,7 +102,7 @@ contract Game {//is VRFConsumerBase {
         require(gamers[gamersID[_msgSender]].gamerAddress != _msgSender, "You are already in game");
 
         require(calculateParticipants(), "Limit of users");
-        id++;
+        ++id;
         gamersID[_msgSender] = id;
         gamers[id].number = _number;
         gamers[id].gamerAddress = _msgSender;
@@ -115,20 +113,22 @@ contract Game {//is VRFConsumerBase {
 
     /// @notice getting winners
     function getWinner() public {
-        randomRecived == true
-        ? require(randomResult < 101, "You need to get random Number")
-        : getPseudorandom(); //getRandomNumber()
+        require(randomRecived, "You need to get random number");
+        // randomRecived == true
+        // ? require(randomResult < 101, "You need to get random Number")
+        // : getPseudorandom();
         require(block.timestamp - startGame >= 5 minutes, "Game is not Over");
         require(!gameEnded, "Game ended, tokens transfered to winners");
 
         _numberOfWinners = getNumberOfWinners();
         _counter = abs(1);
 
-        for (uint256 i = 0; i <= id; i++) { // getting the nearest number to random number
+        for (uint256 i = 0; i <= id;) { // getting the nearest number to random number
             gamers[i].ABS = abs(i);
             if (_counter > gamers[i].ABS){
                 _counter = gamers[i].ABS;
                 idOfFirstWinner = i;
+                unchecked { ++i; } // lower gas
             }
         }
 
@@ -136,21 +136,24 @@ contract Game {//is VRFConsumerBase {
         ? idOfFirstWinner = idOfFirstWinner
         : idOfFirstWinner = 1;
 
-        for (uint256 j = 0; j < _numberOfWinners && _numberOfWinners >= _count; j++) {
-            for (uint256 i = 0; i <= id; i++) { // getting array of wiiners 
+        for (uint256 j = 0; j < _numberOfWinners && _numberOfWinners >= _count;) {
+            for (uint256 i = 0; i <= id;) { // getting array of wiiners 
                 if (_counter == gamers[i].ABS) {
                     _count++;
                     // _numberOfWinners > 0 ? _numberOfWinners-- : _numberOfWinners;
                     winners.push(i);
                     idOfFirstWinner = i;
+                    unchecked { ++i; } // lower gas
                 } 
             }
             _counter = gamers[idOfFirstWinner].ABS;
-            for (uint256 i = 0; i <= id; i++) { // getting array of wiiners 
+            for (uint256 i = 0; i <= id;) { // getting array of wiiners 
                 if (_counter > gamers[i].ABS && _counter != gamers[idOfFirstWinner].ABS){
                     _counter = gamers[i].ABS;
+                    unchecked { ++i; } // lower gas
                 } 
             }
+            unchecked { ++j; } // lower gas
         }
         
         // _count < _numberOfWinners
@@ -160,8 +163,10 @@ contract Game {//is VRFConsumerBase {
         // transferWinnerAmount(); 
 
         uint256 _winnerAmount = calculateWinnerAmount();
-        for (uint256 i = 0; i < winners.length; i++) { // transfering winners amount of tokens
+        uint256 length = winners.length; // lower gas
+        for (uint256 i = 0; i < length;) { // transfering winners amount of tokens
             token.transfer(gamers[winners[i]].gamerAddress, _winnerAmount);
+            unchecked { i++; } // lower gas
             emit Winner(gamers[winners[i]].gamerAddress, gamers[winners[i]].number, _winnerAmount);
         }
 
