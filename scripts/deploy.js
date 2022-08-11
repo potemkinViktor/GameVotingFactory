@@ -16,6 +16,8 @@ async function main() {
     1, // depost
     120, // number of users
     89, // 
+    0,
+    0,
   );
   await game.deployed();
 
