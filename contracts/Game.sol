@@ -2,8 +2,10 @@
 pragma solidity ^0.8.13;
 
 import "hardhat/console.sol";
-import "./VRFConsumerBase.sol";
-// import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
+// import "./VRFConsumerBase.sol";
+import "./mocks/VRFCoordinatorV2Interface.sol";
+import "./VRFConsumerBaseV2.sol";
+
 
 interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
@@ -13,7 +15,7 @@ interface IERC20 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
 
-contract Game is VRFConsumerBase {
+contract Game is VRFConsumerBaseV2 {
 
     struct Gamer {
         uint256 number; // number from 0 to 100
@@ -38,25 +40,73 @@ contract Game is VRFConsumerBase {
     uint256[] public winners;
 
     bool public randomRecived; // allowing to get random number just once
-    bytes32 internal keyHash; // identifies which Chainlink oracle to use
     uint256 internal fee;        // fee to get random number
     uint256 public randomResult = 101; // random number
+
+    VRFCoordinatorV2Interface immutable COORDINATOR;
+
+    // Your subscription ID.
+    uint64 immutable subscriptionId;
+
+    // The gas lane to use, which specifies the maximum gas price to bump to.
+    // For a list of available gas lanes on each network,
+    // see https://docs.chain.link/docs/vrf-contracts/#configurations
+    bytes32 immutable keyHash;
+
+    // Depends on the number of requested values that you want sent to the
+    // fulfillRandomWords() function. Storing each word costs about 20,000 gas,
+    // so 100,000 is a safe default for this example contract. Test and adjust
+    // this limit based on the network that you select, the size of the request,
+    // and the processing of the callback request in the fulfillRandomWords()
+    // function.
+    uint32 constant CALLBACK_GAS_LIMIT = 100000;
+
+    // The default is 3, but you can set this higher.
+    uint16 constant REQUEST_CONFIRMATIONS = 3;
+
+    // For this example, retrieve 2 random values in one request.
+    // Cannot exceed VRFCoordinatorV2.MAX_NUM_WORDS.
+    uint32 constant NUM_WORDS = 1;
+
+    uint256[] public s_randomWords;
+    uint256 public s_requestId;
+    address s_owner;
 
     event NewGamer(address gamer, uint256 number, uint256 id);
     event GameEnded(uint256 endPoint, uint256 randomNumber);
     event Winner(address winner, uint256 winnerNumber, uint256 amount);
+    event ReturnedRandomness(uint256[] randomWords);
+
+  
+//    * @notice Constructor inherits VRFConsumerBaseV2
+//    *
+//    * @param subscriptionId - the subscription ID that this contract uses for funding requests
+//    * @param vrfCoordinator - coordinator, check https://docs.chain.link/docs/vrf-contracts/#configurations
+//    * @param keyHash - the gas lane to use, which specifies the maximum gas price to bump to
+   
+
+    modifier onlyOwner() {
+        require(msg.sender == s_owner);
+        _;
+    }
+
+    // VRFConsumerBase(
+        //     0x8C7382F9D8f56b33781fE506E897a4F1e2d17255, // VRF coordinator
+        //     0x326C977E6efc84E512bB9C30f76E30c160eD06FB LINK token address
+        // ) 
 
     constructor (
         IERC20 _token, // address of token which you should deposit to participate
         uint256 _deposit, //amount of tokens to participate in Game
         uint256 _numberOfUsers, // maximum number of players 
-        uint256 _number // number of owner
+        uint256 _number, // number of owner
+        uint64 _subscriptionId,
+        address vrfCoordinator
     )
-        VRFConsumerBase(
-            0x8C7382F9D8f56b33781fE506E897a4F1e2d17255, // VRF coordinator
-            0x326C977E6efc84E512bB9C30f76E30c160eD06FB // LINK token address
-        ) 
+        VRFConsumerBaseV2(vrfCoordinator)
     {
+        COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+        subscriptionId = _subscriptionId;
         address _msgSender = msg.sender;
         token = _token;
         deposit = _deposit;
@@ -64,25 +114,51 @@ contract Game is VRFConsumerBase {
         keyHash = 0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4;
         fee = 100000000000000; // 0.0001 LINK
         gamers[id].number = _number;
-        gamers[id].gamerAddress = _msgSender;
+        gamers[id].gamerAddress = _msgSender; 
         gamersID[_msgSender] = id;
         startGame = block.timestamp;
     }
 
-    /// @notice function from chainlink
-    function getRandomNumber() public returns (bytes32 requestId) {
-        require(block.timestamp - startGame >= 5 minutes, "Game is not Over");
-        require(!randomRecived, "Random number recived");
-        require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK in contract");
-        randomRecived = true;
-        return requestRandomness(keyHash, fee);
+     /**
+    * @notice Requests randomness
+     * Assumes the subscription is funded sufficiently; "Words" refers to unit of data in Computer Science
+    */
+    function requestRandomWords() external onlyOwner {
+        // Will revert if subscription is not set and funded.
+        s_requestId = COORDINATOR.requestRandomWords(
+        keyHash,
+        subscriptionId,
+        REQUEST_CONFIRMATIONS,
+        CALLBACK_GAS_LIMIT,
+        NUM_WORDS
+        );
     }
 
-    /// @notice function from chainlink 
-    function fulfillRandomness(bytes32 requestId, uint randomness) internal override {
-        randomResult = randomness % 101;
-        require(randomResult < 101, "You need to wait for random Number");
+    /**
+    * @notice Callback function used by VRF Coordinator
+    *
+    * @param requestId - id of the request
+    * @param randomWords - array of random results from VRF Coordinator
+    */
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
+        s_randomWords[0] = randomWords[0] % 101;
+        emit ReturnedRandomness(randomWords);
     }
+
+    /// @notice chainlink random number using V1
+    // function getRandomNumber() public returns (bytes32 requestId) {
+    //     require(block.timestamp - startGame >= 5 minutes, "Game is not Over");
+    //     require(!randomRecived, "Random number recived");
+    //     require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK in contract");
+    //     randomRecived = true;
+    //     return requestRandomness(keyHash, fee);
+    // }
+
+    // /// @notice function from chainlink 
+    // function fulfillRandomness(bytes32 requestId, uint randomness) internal override {
+    //     randomResult = randomness % 101;
+    //     require(randomResult < 101, "You need to wait for random Number");
+    // }
 
     // function getPseudorandom() private {
     //     require(!randomRecived, "Random number recived");

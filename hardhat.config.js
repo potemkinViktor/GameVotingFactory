@@ -16,24 +16,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
  const API_KEY = process.env.API_KEY
 
 module.exports = {
-  defaultNetwork: "hardhat",
-  solidity: {
-    compilers: [
-      {
-        version: "0.4.11",
-        version: "0.4.24",
-      },
-      {
-        version: "0.8.13",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 1000,
-          },
-        },
-      },
-    ],
-  },
+  solidity: "0.8.13",
   networks: {
     mumbai: {
       url: MORALIS_URL,

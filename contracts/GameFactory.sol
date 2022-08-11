@@ -12,11 +12,29 @@ contract GameFactory {
         uint256 number;
         uint256 numberOfUsers;
         address gameOwner;
+        address gameAddress;
     }
+
+    address public owner;
+    uint64 public subscriptionId;
+    address public vrfCoordinator;
     
-    event GameStarted(IERC20 token, uint256 deposit, uint256 number, uint256 numberOfUsers, address owner);
+    event GameStarted(IERC20 token, uint256 deposit, uint256 number, uint256 numberOfUsers, address owner, address gameAddress);
 
     mapping(address => Games) public games;
+
+    modifier onlyOwner() {
+        require(msg.sender == owner);
+        _;
+    }
+
+    constructor (
+        
+    ) {
+        owner = msg.sender;
+        subscriptionId = 1377;
+        vrfCoordinator = 0x7a1BaC17Ccc5b313516C5E16fb24f7659aA5ebed;
+    }
 
     /// @notice creating new game
     /// @param _token IERC20 token for participate in game
@@ -37,17 +55,26 @@ contract GameFactory {
             "Your number should be less or equals to 100"
         );
 
-        Game game = new Game(_token, _deposit, _numberOfUsers, _number);
+        Game game = new Game(_token, _deposit, _numberOfUsers, _number, subscriptionId, vrfCoordinator);
         games[_msgSender] = Games({
             token: _token,
             deposit: _deposit,
             number: _number,
             numberOfUsers: _numberOfUsers,
-            gameOwner: _msgSender
+            gameOwner: _msgSender,
+            gameAddress: address(game)
         });
 
         _token.transferFrom(_msgSender, address(game), _deposit);
 
-        emit GameStarted(_token, _deposit, _number, _numberOfUsers, _msgSender);
+        emit GameStarted(_token, _deposit, _number, _numberOfUsers, _msgSender, address(game));
+    }
+
+    function changeSubscriptionId (uint64 _subscriptionId) public onlyOwner {
+        subscriptionId = _subscriptionId;
+    }
+
+    function chamgeVrfCoordinator (address _vrfCoordinator) public onlyOwner {
+        vrfCoordinator = _vrfCoordinator;
     }
 }
